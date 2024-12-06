@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Tracker Research</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input, button, select {
+            padding: 10px;
+            font-size: 16px;
+        }
+        input, select {
+            flex: 1;
+            min-width: 120px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .action-buttons button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        .check-in { background-color: #4CAF50; }
+        .check-out { background-color: #f44336; }
+        .mark-tardy { background-color: #ff9800; }
+        .checked-in { background-color: #81c784; }
+        .checked-out { background-color: #e57373; }
+        .tardy { background-color: #ffb74d; }
+        .student-photo {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .photo-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .photo-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            background-color: #f8f8f8;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Student Tracker Research</h1>
+        <form id="studentForm">
+            <input type="text" id="firstName" placeholder="First Name" required>
+            <input type="text" id="lastName" placeholder="Last Name" required>
+            <input type="text" id="id" placeholder="Student ID" required>
+            <input type="number" id="age" placeholder="Age" required>
+            <input type="text" id="grade" placeholder="Grade" required>
+            <input type="email" id="parentEmail" placeholder="Parent Email" required>
+            <input type="date" id="schoolDate" required>
+            <div class="photo-upload">
+                <img id="photoPreview" class="photo-preview" src="/placeholder.svg" alt="Student photo preview">
+                <label for="photo" class="custom-file-upload">
+                    Choose Photo
+                </label>
+                <input type="file" id="photo" accept="image/*" style="display:none;">
+            </div>
+            <button type="submit">Add Student</button>
+        </form>
+        <input type="text" id="searchInput" placeholder="Search students...">
+        <table id="studentTable">
+            <thead>
+                <tr>
+                    <th>Photo</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Student ID</th>
+                    <th>Age</th>
+                    <th>Grade</th>
+                    <th>Parent Email</th>
+                    <th>School Date</th>
+                    <th>Status</th>
+                    <th>Absences</th>
+                    <th>Tardiness Reasons</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="tardinessModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Reason for Tardiness</h2>
+            <select id="tardinessReason">
+                <option value="Transportation Issues">Transportation Issues</option>
+                <option value="Overslept">Overslept</option>
+                <option value="Family Emergency">Family Emergency</option>
+                <option value="Medical Appointment">Medical Appointment</option>
+                <option value="Other">Other</option>
+            </select>
+            <button id="submitTardinessReason">Submit</button>
+        </div>
+    </div>
+
+    <script>
+        let students = [];
+        let currentStudentId = null;
+
+        function getCurrentDateTimeGMT8() {
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            return new Date(utc + (3600000 * 8));
+        }
+
+        function formatDate(date) {
+            return date.toLocaleString('en-US', { timeZone: 'Asia/Manila' });
+        }
+
+        document.getElementById('photo').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('photoPreview').src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('studentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const id = document.getElementById('id').value;
+            const age = document.getElementById('age').value;
+            const grade = document.getElementById('grade').value;
+            const parentEmail = document.getElementById('parentEmail').value;
+            const photoUrl = document.getElementById('photoPreview').src;
+            const schoolDate = new Date(document.getElementById('schoolDate').value);
+
+            students.push({ 
+                firstName,
+                lastName,
+                id, 
+                age, 
+                grade, 
+                parentEmail, 
+                photoUrl, 
+                schoolDate,
+                status: 'Not Checked In', 
+                absences: 0,
+                tardinessReasons: []
+            });
+            updateTable();
+            this.reset();
+            document.getElementById('photoPreview').src = '/placeholder.svg';
+        });
+
+        document.getElementById('searchInput').addEventListener('input', function() {
+            updateTable();
+        });
+
+        function updateTable() {
+            const tbody = document.querySelector('#studentTable tbody');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            students.filter(student => 
+                Object.values(student).some(value => 
+                    value.toString().toLowerCase().includes(searchTerm)
+                )
+            ).forEach(student => {
+                const row = tbody.insertRow();
+                
+                // Photo
+                const photoCell = row.insertCell();
+                const img = document.createElement('img');
+                img.src = student.photoUrl;
+                img.alt = `${student.firstName} ${student.lastName}'s photo`;
+                img.className = 'student-photo';
+                photoCell.appendChild(img);
+
+                // Other details
+                ['firstName', 'lastName', 'id', 'age', 'grade', 'parentEmail'].forEach(prop => {
+                    const cell = row.insertCell();
+                    cell.textContent = student[prop];
+                });
+
+                // School Date
+                const schoolDateCell = row.insertCell();
+                schoolDateCell.textContent = formatDate(student.schoolDate);
+
+                // Status
+                const statusCell = row.insertCell();
+                statusCell.textContent = student.status;
+                statusCell.className = student.status.toLowerCase().replace(' ', '-');
+
+                // Absences
+                const absencesCell = row.insertCell();
+                absencesCell.textContent = student.absences;
+
+                // Tardiness Reasons
+                const tardinessCell = row.insertCell();
+                tardinessCell.textContent = student.tardinessReasons.map(reason => `${reason.reason} (${formatDate(reason.date)})`).join(', ');
+
+                const actionsCell = row.insertCell();
+                actionsCell.className = 'action-buttons';
+                
+                const checkInBtn = document.createElement('button');
+                checkInBtn.textContent = 'Check In';
+                checkInBtn.className = 'check-in';
+                checkInBtn.onclick = () => updateStatus(student.id, 'Checked In');
+                
+                const checkOutBtn = document.createElement('button');
+                checkOutBtn.textContent = 'Check Out';
+                checkOutBtn.className = 'check-out';
+                checkOutBtn.onclick = () => updateStatus(student.id, 'Checked Out');
+                
+                const markTardyBtn = document.createElement('button');
+                markTardyBtn.textContent = 'Mark Tardy';
+                markTardyBtn.className = 'mark-tardy';
+                markTardyBtn.onclick = () => {
+                    currentStudentId = student.id;
+                    document.getElementById('tardinessModal').style.display = 'block';
+                };
+                
+                actionsCell.appendChild(checkInBtn);
+                actionsCell.appendChild(checkOutBtn);
+                actionsCell.appendChild(markTardyBtn);
+            });
+        }
+
+        function updateStatus(studentId, newStatus) {
+            const student = students.find(s => s.id === studentId);
+            if (student) {
+                if (newStatus === 'Tardy' || (newStatus === 'Checked In' && student.status === 'Not Checked In')) {
+                    student.absences++;
+                }
+                student.status = newStatus;
+                updateTable();
+            }
+        }
+
+        // Tardiness Modal
+        const modal = document.getElementById('tardinessModal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+        const submitBtn = document.getElementById('submitTardinessReason');
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        submitBtn.onclick = function() {
+            const reason = document.getElementById('tardinessReason').value;
+            const student = students.find(s => s.id === currentStudentId);
+            if (student) {
+                student.tardinessReasons.push({
+                    reason: reason,
+                    date: getCurrentDateTimeGMT8()
+                });
+                student.status = 'Tardy';
+                student.absences++;
+                updateTable();
+            }
+            modal.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
